@@ -20,12 +20,25 @@ export class TodosAccess {
     async getTodosForUser(userId: string): Promise<TodoItem[]> {
         logger.info('call TodosAccess.getTodosForUser');
 
-        const result = await this.docClient.scan({
+        // const result = await this.docClient.scan({
+        //     TableName: this.todosTable,
+        //     FilterExpression: 'userId = :userId',
+        //     ExpressionAttributeValues: { ':userId': userId }
+        // }).promise()
+        const params = {
             TableName: this.todosTable,
-            FilterExpression: 'userId = :userId',
-            ExpressionAttributeValues: { ':userId': userId }
-        }).promise()
-
+            KeyConditionExpression: "#DYNOBASE_userId = :pkey",
+            ExpressionAttributeValues: {
+              ":pkey": userId
+            },
+            ExpressionAttributeNames: {
+              "#DYNOBASE_userId": "userId"
+            },
+            ScanIndexForward: true
+          };
+          
+        const result = await this.docClient.query(params).promise();
+          
         const items = result.Items
         logger.info('result: ' + items);
         return items as TodoItem[]
