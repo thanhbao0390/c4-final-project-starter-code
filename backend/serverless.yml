@@ -13,8 +13,8 @@ plugins:
 provider:
   name: aws
   runtime: nodejs12.x
-  stage: 'dev' # ${opt:stage, 'dev'}
-  region: 'us-east-1' # ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
 
   tracing:
     lambda: true
@@ -27,7 +27,7 @@ provider:
     TODOS_TABLE: Todos-${self:provider.stage}
     TODOS_CREATED_AT_INDEX: CreatedAtIndex
     #CONNECTIONS_TABLE: Connections-${self:provider.stage}
-    ATTACHMENT_S3_BUCKET: serverless-c4-todo-images-${self:provider.stage}
+    ATTACHMENT_S3_BUCKET: serverless-c4-todo-images-982675634385-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
     AUTH_0_SECRET_ID: Auth0Secret-${self:provider.stage}
     AUTH_0_SECRET_FIELD: SXudh6OKHDG27c2di3k7YJYm4dfFx2ciqCP_F5XlgIguwJPZ6GL9a5oBFjybxs79
