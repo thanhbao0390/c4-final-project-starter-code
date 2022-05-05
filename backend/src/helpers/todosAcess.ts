@@ -79,6 +79,28 @@ export class TodosAccess {
         return todoUpdate
     }
 
+    async updateAttachmentUrl(userId: string, todoId: string, uploadUrl: string): Promise<string> {
+        logger.info('call TodosAccess.updateTodo'+ uploadUrl);
+        var params = {
+            TableName: this.todosTable,
+            Key: {
+                userId: userId,
+                todoId: todoId
+            },
+            UpdateExpression: 'set attachmentUrl = :attachmentUrl',
+            ExpressionAttributeValues: {
+                ':attachmentUrl': uploadUrl.split("?")[0]
+            }
+        };
+
+        await this.docClient.update(params, function (err, data) {
+            if (err) console.log(err);
+            else console.log(data);
+        }).promise()
+        logger.info('result: ' + uploadUrl);
+        return uploadUrl
+    }
+
     async deleteTodo(userId: string, todoId: string) {
         logger.info('call TodosAccess.deleteTodo');
         var params = {

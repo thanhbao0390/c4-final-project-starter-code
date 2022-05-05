@@ -41,45 +41,9 @@ provider:
       statements:
         - Effect: Allow
           Action:
-            - codedeploy:*
-          Resource:
-            - '*'
-        - Effect: Allow
-          Action:
             - xray:PutTelemetryRecords
             - xray:PutTraceSegments
           Resource: "*"
-        - Effect: Allow
-          Action:
-            - dynamodb:Scan
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:GetItem
-            - dynamodb:Query
-          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-        - Effect: Allow
-          Action:
-            - dynamodb:Query
-          Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_CREATED_AT_INDEX}
-        - Effect: Allow
-          Action:
-            - s3:PutObject
-            - s3:GetObject
-          Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
-        #- Effect: Allow
-        #  Action:
-        #    - dynamodb:Scan
-        #    - dynamodb:PutItem
-        #    - dynamodb:DeleteItem
-        #  Resource: arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
-        - Effect: Allow
-          Action:
-            - secretsmanager:GetSecretValue
-          Resource: !Ref Auth0Secret
-        - Effect: Allow
-          Action:
-            - kms:Decrypt
-          Resource: !GetAtt KMSKey.Arn
 
 custom:
   topicName: imagesTopic-${self:provider.stage}
@@ -97,27 +61,27 @@ custom:
     stages: # Add this section of the config
       - dev
   
-  # documentation:
-  #   api:
-  #     info:
-  #       version: v1.0.0
-  #       title: Udagram API
-  #       description: Serverless application for images sharing
-  #   models:
-  #     - name: CreateTodoRequest
-  #       contentType: application/json
-  #       schema: ${file(models/create-todo-model.json)}
-  #     - name: UpdateTodoRequest
-  #       contentType: application/json
-  #       schema: ${file(models/update-todo-model.json)}
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Udagram API
+        description: Serverless application for images sharing
+    models:
+      - name: CreateTodoRequest
+        contentType: application/json
+        schema: ${file(models/create-todo-model.json)}
+      - name: UpdateTodoRequest
+        contentType: application/json
+        schema: ${file(models/update-todo-model.json)}
 
 functions:
 
   RS256Auth:
     handler: src/lambda/auth/rs256Auth0Authorizer.handler
 
-  Auth:
-    handler: src/lambda/auth/auth0Authorizer.handler
+  # Auth:
+  #   handler: src/lambda/auth/auth0Authorizer.handler
 
   ## TODO: Configure this function - 
   # Provide iamRoleStatements property for performing Actions on DynamoDB
@@ -130,6 +94,15 @@ functions:
           cors: true
           authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_CREATED_AT_INDEX}
 
   ## TODO: Configure this function - 
   # Provide iamRoleStatements property. Decide the Actions and AWS Resource. 
@@ -147,6 +120,11 @@ functions:
           request:
             schemas:
               application/json: ${file(models/create-todo-model.json)}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
   ## TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements, and request schemas
@@ -161,8 +139,13 @@ functions:
           reqValidatorName: RequestBodyValidator
           request:
             schemas:
-              application/json: ${file(models/create-todo-model.json)}
-
+              application/json: ${file(models/update-todo-model.json)}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      
   ## TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements
   DeleteTodo:
@@ -174,7 +157,12 @@ functions:
           cors: true
           authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
-
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      
   ## TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements
   GenerateUploadUrl:
@@ -186,6 +174,16 @@ functions:
           cors: true
           authorizer: RS256Auth
           reqValidatorName: RequestBodyValidator
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+          - s3:GetObject
+        Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
 
 resources:
   Resources:
@@ -198,7 +196,7 @@ resources:
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST,DELETE,PUT,PATCH'"
         ResponseType: DEFAULT_4XX
         RestApiId:
           Ref: ApiGatewayRestApi
@@ -214,14 +212,6 @@ resources:
             AttributeType: S
           - AttributeName: createdAt
             AttributeType: S
-          #- AttributeName: name
-          #  AttributeType: S
-          #- AttributeName: dueDate
-          #  AttributeType: S
-          #- AttributeName: done
-          #  AttributeType: S
-          #- AttributeName: attachmentUrl
-          #  AttributeType: S
         KeySchema:
           - AttributeName: userId
             KeyType: HASH
@@ -229,7 +219,7 @@ resources:
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.TODOS_TABLE}
-        LocalSecondaryIndexes:
+        GlobalSecondaryIndexes:
           - IndexName: ${self:provider.environment.TODOS_CREATED_AT_INDEX}
             KeySchema:
             - AttributeName: userId
@@ -238,20 +228,6 @@ resources:
               KeyType: RANGE
             Projection:
               ProjectionType: ALL
-              
-    #WebSocketConnectionsDynamoDBTable:
-    #  Type: AWS::DynamoDB::Table
-    #  Properties:
-    #    AttributeDefinitions:
-    #      -
-    #        AttributeName: id
-    #        AttributeType: S
-    #    KeySchema:
-    #      -
-    #        AttributeName: id
-    #        KeyType: HASH
-    #    BillingMode: PAY_PER_REQUEST
-    #    TableName: ${self:provider.environment.CONNECTIONS_TABLE}
 
     RequestBodyValidator:
       Type: AWS::ApiGateway::RequestValidator
@@ -266,13 +242,8 @@ resources:
     # Do not forget to add the CorsConfiguration propoerty
     AttachmentsBucket:
       Type: AWS::S3::Bucket
-      DependsOn: SNSTopicPolicy
       Properties:
         BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
-        NotificationConfiguration:
-          TopicConfigurations:
-            - Event: s3:ObjectCreated:Put
-              Topic: !Ref ImagesTopic
         CorsConfiguration:
           CorsRules:
             -
@@ -300,64 +271,11 @@ resources:
             - Sid: PublicReadForGetBucketObjects
               Effect: Allow
               Principal: '*'
-              Action: 's3:GetObject'
+              Action: 
+                - s3:PutObject
+                - s3:GetObject
               Resource: 'arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*'
         Bucket: !Ref AttachmentsBucket
 
-    SNSTopicPolicy:
-      Type: AWS::SNS::TopicPolicy
-      Properties:
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS: "*"
-              Action: sns:Publish
-              Resource:
-                !Ref ImagesTopic
-              Condition:
-                ArnLike:
-                  AWS:SourceArn: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}
-        Topics:
-          - !Ref ImagesTopic
 
-    ImagesTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        DisplayName: Image bucket topic
-        TopicName: ${self:custom.topicName}
 
-    KMSKey:
-      Type: AWS::KMS::Key
-      Properties:
-        Description: KMS key to encrypt Auth0 secret
-        KeyPolicy:
-          Version: '2012-10-17'
-          Id: key-default-1
-          Statement:
-            - Sid: Allow administration of the key
-              Effect: Allow
-              Principal:
-                AWS:
-                  Fn::Join:
-                  - ':'
-                  - - 'arn:aws:iam:'
-                    - Ref: AWS::AccountId
-                    - 'root'
-              Action:
-                - 'kms:*'
-              Resource: '*'
-
-    KMSKeyAlias:
-      Type: AWS::KMS::Alias
-      Properties:
-        AliasName: alias/auth0Key-${self:provider.stage}
-        TargetKeyId: !Ref KMSKey
-
-    Auth0Secret:
-      Type: AWS::SecretsManager::Secret
-      Properties:
-        Name: ${self:provider.environment.AUTH_0_SECRET_ID}
-        Description: Auth0 secret
-        KmsKeyId: !Ref KMSKey

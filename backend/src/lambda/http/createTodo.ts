@@ -17,7 +17,7 @@ export const handler = middy(
     const userId = getUserId(event)
     
     console.log('Storing new item: ', newTodo)
-    const newItem = await createTodo(userId, newTodo)
+    const item = await createTodo(userId, newTodo)
     
     return {
       statusCode: 201,
@@ -25,7 +25,7 @@ export const handler = middy(
         'Access-Control-Allow-Origin': '*'
       },
       body: JSON.stringify({
-        newItem
+        item
       })
     }
   }
